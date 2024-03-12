@@ -18,6 +18,7 @@ from shapely.geometry import Polygon, box
 from os.path import join, realpath, dirname, exists
 # from utils.visdom import Visdom
 from _collections import OrderedDict
+
 try:
     torch._utils._rebuild_tensor_v2
 except AttributeError:
@@ -26,7 +27,10 @@ except AttributeError:
         tensor.requires_grad = requires_grad
         tensor._backward_hooks = backward_hooks
         return tensor
+
+
     torch._utils._rebuild_tensor_v2 = _rebuild_tensor_v2
+
 
 # ---------------------------------
 # vis
@@ -41,6 +45,7 @@ def visdom_draw_tracking(visdom, image, box, segmentation=None):
     else:
         visdom.register((image, *box, segmentation), 'Tracking', 1, 'Tracking')
 
+
 def _visdom_ui_handler(self, data):
     pause_mode = False
     if data['event_type'] == 'KeyPress':
@@ -50,13 +55,14 @@ def _visdom_ui_handler(self, data):
         elif data['key'] == 'ArrowRight' and pause_mode:
             self.step = True
 
+
 def _init_visdom(visdom_info, debug=False):
     visdom_info = {} if visdom_info is None else visdom_info
     pause_mode = False
     step = False
 
     visdom = Visdom(debug, {'handler': _visdom_ui_handler, 'win_id': 'Tracking'},
-                         visdom_info=visdom_info)
+                    visdom_info=visdom_info)
 
     # Show help
     help_text = 'You can pause/unpause the tracker by pressing ''space'' with the ''Tracking'' window ' \
@@ -93,7 +99,6 @@ def im_to_torch(img):
     return img
 
 
-
 def get_subwindow_tracking_mask(im, pos, model_sz, original_sz, out_mode='torch'):
     """
     SiamFC type cropping
@@ -105,7 +110,7 @@ def get_subwindow_tracking_mask(im, pos, model_sz, original_sz, out_mode='torch'
 
     sz = original_sz
     im_sz = im.shape
-    c = (original_sz+1) / 2
+    c = (original_sz + 1) / 2
     context_xmin = round(pos[0] - c)
     context_xmax = context_xmin + sz - 1
     context_ymin = round(pos[1] - c)
@@ -166,7 +171,7 @@ def get_subwindow_tracking(im, pos, model_sz, original_sz, avg_chans, out_mode='
 
     sz = original_sz
     im_sz = im.shape
-    c = (original_sz+1) / 2
+    c = (original_sz + 1) / 2
     context_xmin = round(pos[0] - c)
     context_xmax = context_xmin + sz - 1
     context_ymin = round(pos[1] - c)
@@ -236,6 +241,7 @@ def make_scale_pyramid(im, pos, in_side_scaled, out_side, avg_chans):
         pyramid[s, :] = temp
     return pyramid
 
+
 # ---------------------------------
 # Functions for FC tracking tools
 # ---------------------------------
@@ -254,7 +260,7 @@ def generate_anchor(total_stride, scales, ratios, score_size):
     prefer original size without flatten
     """
     anchor_num = len(ratios) * len(scales)
-    anchor = np.zeros((anchor_num, 4),  dtype=np.float32)
+    anchor = np.zeros((anchor_num, 4), dtype=np.float32)
     size = total_stride * total_stride
     count = 0
     for ratio in ratios:
@@ -277,14 +283,13 @@ def generate_anchor(total_stride, scales, ratios, score_size):
                          [ori + total_stride * dy for dy in range(score_size)])
 
     xx, yy = np.tile(xx.flatten(), (anchor_num, 1)).flatten(), \
-             np.tile(yy.flatten(), (anchor_num, 1)).flatten()
+        np.tile(yy.flatten(), (anchor_num, 1)).flatten()
     anchor[:, 0], anchor[:, 1] = xx.astype(np.float32), yy.astype(np.float32)
 
-    anchor = np.reshape(anchor, (5, score_size, score_size, 4))   # this order is right  [5, 17, 17, 4]
-    anchor = np.transpose(anchor, (3, 0, 1, 2))    # [4,5,17,17]
+    anchor = np.reshape(anchor, (5, score_size, score_size, 4))  # this order is right  [5, 17, 17, 4]
+    anchor = np.transpose(anchor, (3, 0, 1, 2))  # [4,5,17,17]
 
-    return anchor   # [4, 5, 17, 17]
-
+    return anchor  # [4, 5, 17, 17]
 
 
 class ImageNormalizer(object):
@@ -385,7 +390,6 @@ def crop_with_boxes(img_tensor, x_crop_boxes, out_height, out_width, crop_inds=N
         crop_img_tensor += img_channel_avg[crop_inds.long()]
 
     return crop_img_tensor
-
 
 
 # -----------------------------------
@@ -597,19 +601,19 @@ def load_dataset(dataset):
 
     return info
 
+
 def load_video_info_im_gt(dataset, video_name):
     if 'LASOT' in dataset:
         base_path = join(realpath(dirname(__file__)), '../../dataset', dataset)
-        json_path = join(realpath(dirname(__file__)), '../../dataset', dataset+'.json')
+        json_path = join(realpath(dirname(__file__)), '../../dataset', dataset + '.json')
         jsons = json.load(open(json_path, 'r'))
         testingvideos = list(jsons.keys())
-
 
         father_video = video_name.split('-')[0]
 
         f_video_path = join(base_path, father_video)
         s_video_path = join(f_video_path, video_name)
-        
+
         # ground truth
         gt_path = join(s_video_path, 'groundtruth.txt')
         gt = np.loadtxt(gt_path, delimiter=',')
@@ -617,7 +621,7 @@ def load_video_info_im_gt(dataset, video_name):
         # get img file
         img_path = join(s_video_path, 'img', '*jpg')
         image_files = sorted(glob.glob(img_path))
-                
+
         imgs = []
         for path in image_files:
             imgs.append(cv2.imread(path))
@@ -626,6 +630,7 @@ def load_video_info_im_gt(dataset, video_name):
         raise ValueError('not supported now')
 
     return imgs, gt
+
 
 def check_keys(model, pretrained_state_dict, print_unuse=True):
     ckpt_keys = set(pretrained_state_dict.keys())
@@ -646,6 +651,7 @@ def check_keys(model, pretrained_state_dict, print_unuse=True):
     assert len(used_pretrained_keys) > 0, 'load NONE from pretrained checkpoint'
     return True
 
+
 def remove_prefix(state_dict, prefix):
     '''
     Old style model is stored with all names of parameters share common prefix 'module.'
@@ -653,6 +659,7 @@ def remove_prefix(state_dict, prefix):
     print('remove prefix \'{}\''.format(prefix))
     f = lambda x: x.split(prefix, 1)[-1] if x.startswith(prefix) else x
     return {f(key): value for key, value in state_dict.items()}
+
 
 def load_pretrain(model, pretrained_path, print_unuse=True):
     print('load pretrained model from {}'.format(pretrained_path))
@@ -663,9 +670,10 @@ def load_pretrain(model, pretrained_path, print_unuse=True):
     if "state_dict" in pretrained_dict.keys():
         pretrained_dict = remove_prefix(pretrained_dict['state_dict'], 'module.')
         pretrained_dict = remove_prefix(pretrained_dict, 'feature_extractor.')  # remove online train
+        pretrained_dict = remove_prefix(pretrained_dict, 'backbone.')  # remove mmpretrain prefix
     else:
         pretrained_dict = remove_prefix(pretrained_dict, 'module.')  # remove multi-gpu label
-        pretrained_dict = remove_prefix(pretrained_dict, 'feature_extractor.')   # remove online train
+        pretrained_dict = remove_prefix(pretrained_dict, 'feature_extractor.')  # remove online train
 
     check_keys(model, pretrained_dict, print_unuse=print_unuse)
     model.load_state_dict(pretrained_dict, strict=False)
@@ -695,6 +703,7 @@ Corner = namedtuple('Corner', 'x1 y1 x2 y2')
 BBox = Corner
 Center = namedtuple('Center', 'x y w h')
 
+
 def corner2center(corner):
     """
     [x1, y1, x2, y2] --> [cx, cy, w, h]
@@ -709,6 +718,7 @@ def corner2center(corner):
         w = x2 - x1
         h = y2 - y1
         return x, y, w, h
+
 
 def center2corner(center):
     """
@@ -725,6 +735,7 @@ def center2corner(center):
         y2 = y + h * 0.5
         return x1, y1, x2, y2
 
+
 def IoU(rect1, rect2):
     # overlap
 
@@ -739,14 +750,15 @@ def IoU(rect1, rect2):
     ww = np.maximum(0, xx2 - xx1)
     hh = np.maximum(0, yy2 - yy1)
 
-    area = (x2-x1) * (y2-y1)
+    area = (x2 - x1) * (y2 - y1)
 
-    target_a = (tx2-tx1) * (ty2 - ty1)
+    target_a = (tx2 - tx1) * (ty2 - ty1)
 
     inter = ww * hh
     overlap = inter / (area + target_a - inter)
 
     return overlap
+
 
 def aug_apply(bbox, param, shape, inv=False, rd=False):
     """
@@ -815,7 +827,8 @@ def aug_apply(bbox, param, shape, inv=False, rd=False):
 
 # others
 def cxy_wh_2_rect(pos, sz):
-    return [float(max(float(0), pos[0]-sz[0]/2)), float(max(float(0), pos[1]-sz[1]/2)), float(sz[0]), float(sz[1])]  # 0-index
+    return [float(max(float(0), pos[0] - sz[0] / 2)), float(max(float(0), pos[1] - sz[1] / 2)), float(sz[0]),
+            float(sz[1])]  # 0-index
 
 
 def get_axis_aligned_bbox(region):
@@ -837,10 +850,11 @@ def get_axis_aligned_bbox(region):
         y = region[1]
         w = region[2]
         h = region[3]
-        cx = x+w/2
-        cy = y+h/2
+        cx = x + w / 2
+        cy = y + h / 2
 
     return cx, cy, w, h
+
 
 # poly_iou and _to_polygon comes from Linghua Huang
 def poly_iou(polys1, polys2, bound=None):
@@ -903,7 +917,7 @@ def _to_polygon(polys):
 def restore_from(model, optimizer, ckpt_path):
     print('restore from {}'.format(ckpt_path))
     device = torch.cuda.current_device()
-    ckpt = torch.load(ckpt_path, map_location = lambda storage, loc: storage.cuda(device))
+    ckpt = torch.load(ckpt_path, map_location=lambda storage, loc: storage.cuda(device))
     epoch = ckpt['epoch']
     arch = ckpt['arch']
     ckpt_model_dict = remove_prefix(ckpt['state_dict'], 'module.')
@@ -911,7 +925,7 @@ def restore_from(model, optimizer, ckpt_path):
     model.load_state_dict(ckpt_model_dict, strict=False)
 
     optimizer.load_state_dict(ckpt['optimizer'])
-    return model, optimizer, epoch,  arch
+    return model, optimizer, epoch, arch
 
 
 def print_speed(i, i_time, n, logger):
@@ -921,8 +935,10 @@ def print_speed(i, i_time, n, logger):
     remaining_day = math.floor(remaining_time / 86400)
     remaining_hour = math.floor(remaining_time / 3600 - remaining_day * 24)
     remaining_min = math.floor(remaining_time / 60 - remaining_day * 1440 - remaining_hour * 60)
-    logger.info('Progress: %d / %d [%d%%], Speed: %.3f s/iter, ETA %d:%02d:%02d (D:H:M)\n' % (i, n, i/n*100, average_time, remaining_day, remaining_hour, remaining_min))
-    logger.info('\nPROGRESS: {:.2f}%\n'.format(100 * i / n))  # for philly. let's reduce it in case others kill our job 100-25
+    logger.info('Progress: %d / %d [%d%%], Speed: %.3f s/iter, ETA %d:%02d:%02d (D:H:M)\n' % (
+    i, n, i / n * 100, average_time, remaining_day, remaining_hour, remaining_min))
+    logger.info(
+        '\nPROGRESS: {:.2f}%\n'.format(100 * i / n))  # for philly. let's reduce it in case others kill our job 100-25
 
 
 def create_logger(cfg, modelFlag='OCEAN', phase='train'):
@@ -1061,9 +1077,9 @@ class StepScheduler(LRScheduler):
             if start_lr is None:
                 start_lr = end_lr / (mult ** (epochs // step))
             else:  # for warm up policy
-                mult = math.pow(end_lr/start_lr, 1. / (epochs // step))
+                mult = math.pow(end_lr / start_lr, 1. / (epochs // step))
         self.start_lr = start_lr
-        self.lr_spaces = self.start_lr * (mult**(np.arange(epochs) // step))
+        self.lr_spaces = self.start_lr * (mult ** (np.arange(epochs) // step))
         self.mult = mult
         self._step = step
 
@@ -1078,7 +1094,7 @@ class MultiStepScheduler(LRScheduler):
             if start_lr is None:
                 start_lr = end_lr / (mult ** (len(steps)))
             else:
-                mult = math.pow(end_lr/start_lr, 1. / len(steps))
+                mult = math.pow(end_lr / start_lr, 1. / len(steps))
         self.start_lr = start_lr
         self.lr_spaces = self._build_lr(start_lr, steps, mult, epochs)
         self.mult = mult
@@ -1090,7 +1106,7 @@ class MultiStepScheduler(LRScheduler):
         lr = [0] * epochs
         lr[0] = start_lr
         for i in range(1, epochs):
-            lr[i] = lr[i-1]
+            lr[i] = lr[i - 1]
             if i in steps:
                 lr[i] *= mult
         return np.array(lr, dtype=np.float32)
@@ -1117,7 +1133,7 @@ class CosStepScheduler(LRScheduler):
     def _build_lr(self, start_lr, end_lr, epochs):
         index = np.arange(epochs).astype(np.float32)
         lr = end_lr + (start_lr - end_lr) * \
-            (1. + np.cos(index * np.pi / epochs)) * 0.5
+             (1. + np.cos(index * np.pi / epochs)) * 0.5
         return lr.astype(np.float32)
 
 
@@ -1145,7 +1161,7 @@ def _build_lr_scheduler(optimizer, config, epochs=50, last_epoch=-1):
 
 
 def _build_warm_up_scheduler(optimizer, cfg, epochs=50, last_epoch=-1, modelFLAG='OCEAN'):
-    #cfg = cfg[modelFLAG]
+    # cfg = cfg[modelFLAG]
     warmup_epoch = cfg.TRAIN.WARMUP.EPOCH
     sc1 = _build_lr_scheduler(optimizer, cfg.TRAIN.WARMUP,
                               warmup_epoch, last_epoch)
@@ -1162,7 +1178,6 @@ def build_lr_scheduler(optimizer, cfg, epochs=50, last_epoch=-1, modelFLAG='OCEA
         return _build_lr_scheduler(optimizer, cfg.TRAIN.LR, epochs, last_epoch)
 
 
-
 # ----------------------------------
 # Some functions for online
 # ----------------------------------
@@ -1170,6 +1185,7 @@ def build_lr_scheduler(optimizer, cfg, epochs=50, last_epoch=-1, modelFLAG='OCEA
 ## original utils/params.py
 class TrackerParams:
     """Class for tracker parameters."""
+
     def free_memory(self):
         for a in dir(self):
             if not a.startswith('__') and hasattr(getattr(self, a), 'free_memory'):
@@ -1178,6 +1194,7 @@ class TrackerParams:
 
 class FeatureParams:
     """Class for feature specific parameters"""
+
     def __init__(self, *args, **kwargs):
         if len(args) > 0:
             raise ValueError
@@ -1192,7 +1209,3 @@ class FeatureParams:
 def Choice(*args):
     """Can be used to sample random parameter values."""
     return random.choice(args)
-
-
-
-

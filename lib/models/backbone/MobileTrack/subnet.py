@@ -5,6 +5,8 @@ from typing import Tuple
 import numpy as np
 from torchsummary import summary
 
+from utils.utils import load_pretrain
+
 
 class SelectAdaptivePool2d(nn.Module):
     """Selectable global pooling layer with dynamic input kernel size
@@ -446,7 +448,7 @@ class SubNet(nn.Module):
         self.stage1 = self._make_stage(self.block_stride[1], self.block_num[1], self.block_channel[1],
                                        architecture=self.architecture[1])
         self.stage2 = self._make_stage(self.block_stride[2], self.block_num[2], self.block_channel[2],
-                                       architecture=self.architecture[2])           # todo: use act
+                                       architecture=self.architecture[2])
         self.stage3 = self._make_stage(self.block_stride[3], self.block_num[3], self.block_channel[3],
                                        architecture=self.architecture[3])
         self.stage4 = self._make_stage(self.block_stride[4], self.block_num[4], self.block_channel[4],
@@ -461,11 +463,7 @@ class SubNet(nn.Module):
     def _make_stage(self, stride, num_blocks, out_channels, use_act=True, last_use_act=True, architecture=None):
 
         strides = [stride] + [1] * (num_blocks - 1)
-
-        if use_act is False:
-            self.use_act = False
-        else:
-            self.use_act = True
+        self.use_act = use_act
 
         blocks = []
         for ix, stride in enumerate(strides):
@@ -473,39 +471,13 @@ class SubNet(nn.Module):
                 self.use_act = False
             kernel_size = self.kernel_size[architecture[ix]]
             if kernel_size == 0:
-                # blocks.append(nn.Identity())
                 continue
             blocks.append(MobileTrackBlock(in_planes=self.in_planes, out_planes=out_channels,
-                                          stride=stride, kernel_size=kernel_size, use_act=self.use_act,
-                                          num_conv_branches=2, inference_mode=self.inference_mode))  # todo: num_conv_branches
+                                           stride=stride, kernel_size=kernel_size, use_act=self.use_act,
+                                           num_conv_branches=2,
+                                           inference_mode=self.inference_mode))  # todo num_conv_branches
             self.in_planes = out_channels
         return nn.Sequential(*blocks)
-
-    def _get_path_back(self):
-        sta_num = [1, 3, 12, 15, 1]
-
-        path_back = []
-        identity_nums = []
-        new_path_back = []
-
-        for item in sta_num:
-            path = np.random.choice(3, item).tolist()
-            path_back.append(path)
-
-        for item in sta_num:
-            identity_num = np.random.randint(int(item * 2 / 3) + 1)
-            identity_nums.append(identity_num)
-
-        for sub_path, identity_num in zip(path_back, identity_nums):
-            reversed_sub_path = sub_path[::-1]
-            modified_sub_path = []
-            for i, val in enumerate(reversed_sub_path):
-                if i < identity_num:
-                    modified_sub_path.append(3)
-                else:
-                    modified_sub_path.append(val)
-            new_path_back.append(modified_sub_path[::-1])
-        self.architecture = new_path_back
 
     def forward_features(self, x):
         x = self.stage0(x)
@@ -515,27 +487,7 @@ class SubNet(nn.Module):
         x = self.stage4(x)
         return x
 
-        # for layer, layer_arch in zip(self.stage, self.architecture):
-        #     # assert (len(layer) == len(layer_arch))  # avoid bugs
-        #     # for blocks, arch in zip(layer, layer_arch):
-        #     for i in range(len(layer)):
-        #         blocks = layer[i]
-        #         arch = layer_arch[i]
-        #
-        #         x = blocks[arch](x)
-        #
-        #         if len(layer_arch) is self.block_num[2] and arch != 3:
-        #             stride8_out = x
-        #
-        #         if len(layer_arch) == self.block_num[2]:
-        #             x = self.act(x)
-        # return x
-
     def forward(self, x):
-        # x = self.forward_features(x)
-        # x = self.global_pool(x)
-        # x = x.flatten(1)
-        # return self.classifier(x)
         x = self.forward_features(x)
 
         return x
@@ -548,11 +500,23 @@ from ptflops import get_model_complexity_info
 
 
 from torchstat import stat
+
 if __name__ == '__main__':
     net = SubNet()
+    # 加载模型
+    net = load_pretrain(net, 'pretrain/mobileone_epoch50.pth')
+    # model = torch.load('pretrain/mobileone_epoch50.pth')
+
     net.eval()
+
+
+
+
     x = torch.randn(1, 3, 255, 255)
     x1 = net(x)
+
+
+
     # print(x.shape)
     net = reparameterize_model(net)
     x2 = net(x)
@@ -561,7 +525,8 @@ if __name__ == '__main__':
     stat(net, (3, 255, 255))
 
     summary(net, (3, 255, 255), device='cpu')
-    macs, params = get_model_complexity_info(net, (3, 255, 255), as_strings=True, print_per_layer_stat=False, verbose=True)
+    macs, params = get_model_complexity_info(net, (3, 255, 255), as_strings=True, print_per_layer_stat=False,
+                                             verbose=True)
     print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
     print('{:<30}  {:<8}'.format('Number of parameters: ', params))
     # input_names = ['input']
@@ -569,4 +534,3 @@ if __name__ == '__main__':
     # dummy_input = torch.randn(1, 3, 255, 255)
     # onnx_export_file = "NewTrack.onnx"
     # torch.onnx.export(net, dummy_input, onnx_export_file, input_names=input_names, output_names=output_names)
-
