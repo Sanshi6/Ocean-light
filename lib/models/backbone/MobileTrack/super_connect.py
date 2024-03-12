@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .connect import *
+from lib.models.connect import *
 
 
 class SeparableConv2d_BNReLU(nn.Module):

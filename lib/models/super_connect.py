@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from .connect import *
+from lib.models.connect import *
 
 
 class SeparableConv2d_BNReLU(nn.Module):
@@ -158,7 +158,7 @@ class tower_supernet_singlechannel(nn.Module):
 
 class head_supernet(nn.Module):
     def __init__(self, channel_list=[112, 256, 512], kernel_list=[3, 5, 7, 0], inchannels=64, towernum=8,
-                 linear_reg=False, base_op_name='SeparableConv2d_BNReLU'):
+                 linear_reg=False, base_op_name='SeparableConv2d_BNReLU', path = None):
         super(head_supernet, self).__init__()
         if base_op_name == 'SeparableConv2d_BNReLU':
             base_op = SeparableConv2d_BNReLU
@@ -171,6 +171,10 @@ class head_supernet(nn.Module):
         self.cand_head_reg = nn.ModuleList()
         self.tower_num = towernum
         self._get_path_back()
+
+        self.path = path
+        if self.path is not None:
+            self.cand_path = self.path
 
         # cls  TODO
         for outchannel in channel_list:
@@ -255,3 +259,37 @@ class reg_pred_head(nn.Module):
             x = self.adjust * self.bbox_pred(x) + self.bias
             x = torch.exp(x)
         return x
+
+
+
+def get_path_back():
+    cls_total_path = []
+    channel_choice_path = np.random.choice(3)
+    kernel_choice_path = np.random.choice(4, 8).tolist()
+    kernel_choice_path = [x for x in kernel_choice_path if x != 3] + [3] * kernel_choice_path.count(3)
+    if kernel_choice_path[0] == 3: kernel_choice_path[0] = np.random.choice(3)
+    cls_total_path.append(channel_choice_path)
+    cls_total_path.append(kernel_choice_path)
+
+    reg_total_path = []
+    channel_choice_path = np.random.choice(3)
+    kernel_choice_path = np.random.choice(4, 8).tolist()
+    kernel_choice_path = [x for x in kernel_choice_path if x != 3] + [3] * kernel_choice_path.count(3)
+    if kernel_choice_path[0] == 3: kernel_choice_path[0] = np.random.choice(3)
+    reg_total_path.append(channel_choice_path)
+    reg_total_path.append(kernel_choice_path)
+
+    cand_h_dict = {'cls': cls_total_path, 'reg': reg_total_path}
+    return cand_h_dict
+
+
+if __name__ == '__main__':
+    for i in range(1000):
+        path = get_path_back()
+        print(path)
+
+
+
+
+
+
