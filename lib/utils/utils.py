@@ -10,6 +10,7 @@ import yaml
 import cv2
 import random
 import numpy as np
+from torch import nn
 
 from torch.optim.lr_scheduler import _LRScheduler
 from pathlib import Path
@@ -654,6 +655,15 @@ def remove_prefix(state_dict, prefix):
     f = lambda x: x.split(prefix, 1)[-1] if x.startswith(prefix) else x
     return {f(key): value for key, value in state_dict.items()}
 
+
+def replace_prefix(state_dict, prefix):
+    '''
+    Old style model is stored with all names of parameters share common prefix 'module.'
+    '''
+    print('remove prefix \'{}\''.format(prefix))
+    f = lambda x: x.replace(prefix, 'features.') if x.startswith(prefix) else x
+    return {f(key): value for key, value in state_dict.items()}
+
 def load_pretrain(model, pretrained_path, print_unuse=True):
     print('load pretrained model from {}'.format(pretrained_path))
 
@@ -663,10 +673,13 @@ def load_pretrain(model, pretrained_path, print_unuse=True):
     if "state_dict" in pretrained_dict.keys():
         pretrained_dict = remove_prefix(pretrained_dict['state_dict'], 'module.')
         pretrained_dict = remove_prefix(pretrained_dict, 'feature_extractor.')  # remove online train
+        # pretrained_dict = remove_prefix(pretrained_dict, 'backbone.')  # remove online train
+        pretrained_dict = replace_prefix(pretrained_dict, 'backbone.')  # remove online train
     else:
         pretrained_dict = remove_prefix(pretrained_dict, 'module.')  # remove multi-gpu label
         pretrained_dict = remove_prefix(pretrained_dict, 'feature_extractor.')   # remove online train
-
+        # pretrained_dict = remove_prefix(pretrained_dict, 'backbone.')  # remove online train
+        pretrained_dict = replace_prefix(pretrained_dict, 'backbone.')  # remove online train
     check_keys(model, pretrained_dict, print_unuse=print_unuse)
     model.load_state_dict(pretrained_dict, strict=False)
     return model
@@ -1194,5 +1207,24 @@ def Choice(*args):
     return random.choice(args)
 
 
+def init_weights(m):
+    if isinstance(m, nn.Conv2d):
+        # 使用He初始化方法（Kaiming初始化）初始化卷积层的权重
+        nn.init.kaiming_uniform_(m.weight, mode='fan_in', nonlinearity='relu')
+        if m.bias is not None:
+            # 将偏置初始化为0
+            nn.init.constant_(m.bias, 0)
+    elif isinstance(m, nn.Linear):
+        # 同样使用He初始化方法初始化线性层的权重
+        nn.init.kaiming_uniform_(m.weight, mode='fan_in', nonlinearity='relu')
+        if m.bias is not None:
+            # 将偏置初始化为0
+            nn.init.constant_(m.bias, 0)
+    elif isinstance(m, nn.BatchNorm2d):
+        # 将BN层的权重初始化为1
+        nn.init.constant_(m.weight, 1)
+        # 将BN层的偏置初始化为0
+        if m.bias is not None:
+            nn.init.constant_(m.bias, 0)
 
 

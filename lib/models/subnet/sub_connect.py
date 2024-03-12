@@ -122,8 +122,9 @@ class tower_subnet_singlechannel(nn.Module):
                 continue
             padding = (kernel_size - 1) // 2
             self.tower.append(base_op(inchannels, outchannels, kernel_size=kernel_size,
-                                   stride=1, padding=padding))
+                                      stride=1, padding=padding))
             inchannels = outchannels
+        self.tower = nn.Sequential(*self.tower)
 
     def forward(self, x):
         x = self.tower(x)
@@ -154,43 +155,40 @@ class sub_connect(nn.Module):
         # cls  TODO
 
         self.cand_tower_cls.append(tower_subnet_singlechannel(inchannels=inchannels, outchannels=cls_outchannel,
-                                                                towernum=towernum, base_op=base_op,
-                                                                kernel_list=kernel_list,
-                                                                path=self.cand_path['cls'][1]))
+                                                              towernum=towernum, base_op=base_op,
+                                                              kernel_list=kernel_list,
+                                                              path=self.cand_path['cls'][1]))
         self.cand_head_cls.append(cls_pred_head(inchannels=cls_outchannel))
-    # reg
+        # reg
 
         self.cand_tower_reg.append(tower_subnet_singlechannel(inchannels=inchannels, outchannels=reg_outchannel,
-                                                                towernum=towernum, base_op=base_op,
-                                                                kernel_list=kernel_list,
-                                                                path=self.cand_path['reg'][1]))
+                                                              towernum=towernum, base_op=base_op,
+                                                              kernel_list=kernel_list,
+                                                              path=self.cand_path['reg'][1]))
         self.cand_head_reg.append(reg_pred_head(inchannels=reg_outchannel, linear_reg=linear_reg))
+
+        self.cand_tower_cls = nn.Sequential(*self.cand_tower_cls)
+        self.cand_head_cls = nn.Sequential(*self.cand_head_cls)
+        self.cand_tower_reg = nn.Sequential(*self.cand_tower_reg)
+        self.cand_head_reg = nn.Sequential(*self.cand_head_reg)
+
+
+
 
 
     def forward(self, x):
         oup = {}
+
         # cls
-        cls_feat = self.cand_tower_cls(x)
+        cand_list_cls = x['cls']  # [0/1/2, []]
+        cls_feat = self.cand_tower_cls(cand_list_cls)
         oup['cls'] = self.cand_head_cls(cls_feat)
+
         # reg
-        reg_feat = self.cand_tower_cls(x)
+        cand_list_reg = x['reg']  # [0/1/2, []]
+        reg_feat = self.cand_tower_cls(cand_list_reg)
         oup['reg'] = self.cand_head_reg(reg_feat)
         return oup
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 class cls_pred_head(nn.Module):
@@ -225,28 +223,6 @@ class reg_pred_head(nn.Module):
         return x
 
 
-def get_path_back():
-    cls_total_path = []
-    channel_choice_path = np.random.choice(3)
-    kernel_choice_path = np.random.choice(4, 8).tolist()
-    kernel_choice_path = [x for x in kernel_choice_path if x != 3] + [3] * kernel_choice_path.count(3)
-    if kernel_choice_path[0] == 3: kernel_choice_path[0] = np.random.choice(3)
-    cls_total_path.append(channel_choice_path)
-    cls_total_path.append(kernel_choice_path)
-
-    reg_total_path = []
-    channel_choice_path = np.random.choice(3)
-    kernel_choice_path = np.random.choice(4, 8).tolist()
-    kernel_choice_path = [x for x in kernel_choice_path if x != 3] + [3] * kernel_choice_path.count(3)
-    if kernel_choice_path[0] == 3: kernel_choice_path[0] = np.random.choice(3)
-    reg_total_path.append(channel_choice_path)
-    reg_total_path.append(kernel_choice_path)
-
-    cand_h_dict = {'cls': cls_total_path, 'reg': reg_total_path}
-    return cand_h_dict
-
-
 if __name__ == '__main__':
     net = sub_connect()
     print(net)
-

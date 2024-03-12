@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
+
 from lib.models.connect import *
 
 
@@ -43,7 +43,7 @@ class MC_BN(nn.Module):
 
 
 class Point_Neck_Mobile_simple(nn.Module):
-    def __init__(self, inchannels=1280, num_kernel=16, cat=False, BN_choice='before', matrix=True):
+    def __init__(self, inchannels=512, num_kernel=None, cat=False, BN_choice='before', matrix=True):
         super(Point_Neck_Mobile_simple, self).__init__()
         self.BN_choice = BN_choice
         if self.BN_choice == 'before':
@@ -101,96 +101,105 @@ class Identity(nn.Module):
 '''2020.09.06 head supernet with mobile settings'''
 
 
-class tower_subnet_singlechannel(nn.Module):
+class tower_supernet_singlechannel(nn.Module):
     """
     tower's supernet
     """
 
     def __init__(self, inchannels=256, outchannels=256, towernum=8,
-                 base_op=SeparableConv2d_BNReLU, kernel_list=[3, 5, 7, 0], path=None):
-        super(tower_subnet_singlechannel, self).__init__()
+                 base_op=SeparableConv2d_BNReLU, kernel_list=[3, 5, 7, 0]):
+        super(tower_supernet_singlechannel, self).__init__()
         if 0 in kernel_list:
             assert (kernel_list[-1] == 0)
         self.kernel_list = kernel_list
         self.num_choice = len(self.kernel_list)
+
         self.tower = nn.ModuleList()
 
         # tower
         for i in range(towernum):
-            kernel_size = self.kernel_list[path[i]]
-            if kernel_size == 0:
-                continue
-            padding = (kernel_size - 1) // 2
-            self.tower.append(base_op(inchannels, outchannels, kernel_size=kernel_size,
-                                   stride=1, padding=padding))
-            inchannels = outchannels
+            '''the first layer, we don't use identity'''
+            if i == 0:
+                op_list = nn.ModuleList()
+                if self.num_choice == 1:
+                    kernel_size = self.kernel_list[-1]
+                    padding = (kernel_size - 1) // 2
+                    op_list.append(base_op(inchannels, outchannels, kernel_size=kernel_size,
+                                           stride=1, padding=padding))
+                else:
+                    for choice_idx in range(self.num_choice - 1):
+                        kernel_size = self.kernel_list[choice_idx]
+                        padding = (kernel_size - 1) // 2
+                        op_list.append(base_op(inchannels, outchannels, kernel_size=kernel_size,
+                                               stride=1, padding=padding))
+                self.tower.append(op_list)
 
-    def forward(self, x):
-        x = self.tower(x)
+            else:
+                op_list = nn.ModuleList()
+                for choice_idx in range(self.num_choice):
+                    kernel_size = self.kernel_list[choice_idx]
+                    if kernel_size != 0:
+                        padding = (kernel_size - 1) // 2
+                        op_list.append(base_op(outchannels, outchannels, kernel_size=kernel_size,
+                                               stride=1, padding=padding))
+                    else:
+                        op_list.append(Identity())
+                self.tower.append(op_list)
+
+    def forward(self, x, arch_list):
+
+        for archs, arch_id in zip(self.tower, arch_list):
+            x = archs[arch_id](x)
+
         return x
 
 
-class sub_connect(nn.Module):
-    def __init__(self, channel_list=[112, 256, 512], kernel_list=[3, 5, 7, 0], inchannels=64, towernum=8,
-                 linear_reg=False, base_op_name='SeparableConv2d_BNReLU'):
-        super(sub_connect, self).__init__()
+'''2020.09.06 the complete head supernet'''
 
-        self.cand_path = {'cls': [1, [0, 1, 0, 1, 2, 3, 3, 3]], 'reg': [1, [1, 2, 0, 0, 3, 3, 3, 3]]}
 
+class head_supernet(nn.Module):
+    def __init__(self, channel_list=[112, 256, 512], kernel_list=[3, 5, 0], inchannels=64, towernum=8, linear_reg=False,
+                 base_op_name='SeparableConv2d_BNReLU'):
+        super(head_supernet, self).__init__()
         if base_op_name == 'SeparableConv2d_BNReLU':
             base_op = SeparableConv2d_BNReLU
         else:
             raise ValueError('Unsupported OP')
-
         self.num_cand = len(channel_list)
         self.cand_tower_cls = nn.ModuleList()
         self.cand_head_cls = nn.ModuleList()
         self.cand_tower_reg = nn.ModuleList()
         self.cand_head_reg = nn.ModuleList()
         self.tower_num = towernum
-
-        cls_outchannel = channel_list[self.cand_path['cls'][0]]
-        reg_outchannel = channel_list[self.cand_path['reg'][0]]
         # cls  TODO
+        for outchannel in channel_list:
+            self.cand_tower_cls.append(tower_supernet_singlechannel(inchannels=inchannels, outchannels=outchannel,
+                                                                    towernum=towernum, base_op=base_op,
+                                                                    kernel_list=kernel_list))
+            self.cand_head_cls.append(cls_pred_head(inchannels=outchannel))
+        # reg
+        for outchannel in channel_list:
+            self.cand_tower_reg.append(tower_supernet_singlechannel(inchannels=inchannels, outchannels=outchannel,
+                                                                    towernum=towernum, base_op=base_op,
+                                                                    kernel_list=kernel_list))
+            self.cand_head_reg.append(reg_pred_head(inchannels=outchannel, linear_reg=linear_reg))
 
-        self.cand_tower_cls.append(tower_subnet_singlechannel(inchannels=inchannels, outchannels=cls_outchannel,
-                                                                towernum=towernum, base_op=base_op,
-                                                                kernel_list=kernel_list,
-                                                                path=self.cand_path['cls'][1]))
-        self.cand_head_cls.append(cls_pred_head(inchannels=cls_outchannel))
-    # reg
-
-        self.cand_tower_reg.append(tower_subnet_singlechannel(inchannels=inchannels, outchannels=reg_outchannel,
-                                                                towernum=towernum, base_op=base_op,
-                                                                kernel_list=kernel_list,
-                                                                path=self.cand_path['reg'][1]))
-        self.cand_head_reg.append(reg_pred_head(inchannels=reg_outchannel, linear_reg=linear_reg))
-
-
-    def forward(self, x):
+    def forward(self, inp, cand_dict=None):
+        """cand_dict key: cls, reg
+         [0/1/2, []]"""
+        if cand_dict is None:
+            cand_dict = {'cls': [0, [0] * self.tower_num], 'reg': [0, [0] * self.tower_num]}
         oup = {}
         # cls
-        cls_feat = self.cand_tower_cls(x)
-        oup['cls'] = self.cand_head_cls(cls_feat)
+        cand_list_cls = cand_dict['cls']  # [0/1/2, []]
+        cls_feat = self.cand_tower_cls[cand_list_cls[0]](inp['cls'], cand_list_cls[1])
+        oup['cls'] = self.cand_head_cls[cand_list_cls[0]](cls_feat)
         # reg
-        reg_feat = self.cand_tower_cls(x)
-        oup['reg'] = self.cand_head_reg(reg_feat)
+        cand_list_reg = cand_dict['reg']  # [0/1/2, []]
+        reg_feat = self.cand_tower_cls[cand_list_reg[0]](inp['reg'], cand_list_reg[1])
+        oup['reg'] = self.cand_head_reg[cand_list_reg[0]](reg_feat)
+
         return oup
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 class cls_pred_head(nn.Module):
@@ -223,30 +232,3 @@ class reg_pred_head(nn.Module):
             x = self.adjust * self.bbox_pred(x) + self.bias
             x = torch.exp(x)
         return x
-
-
-def get_path_back():
-    cls_total_path = []
-    channel_choice_path = np.random.choice(3)
-    kernel_choice_path = np.random.choice(4, 8).tolist()
-    kernel_choice_path = [x for x in kernel_choice_path if x != 3] + [3] * kernel_choice_path.count(3)
-    if kernel_choice_path[0] == 3: kernel_choice_path[0] = np.random.choice(3)
-    cls_total_path.append(channel_choice_path)
-    cls_total_path.append(kernel_choice_path)
-
-    reg_total_path = []
-    channel_choice_path = np.random.choice(3)
-    kernel_choice_path = np.random.choice(4, 8).tolist()
-    kernel_choice_path = [x for x in kernel_choice_path if x != 3] + [3] * kernel_choice_path.count(3)
-    if kernel_choice_path[0] == 3: kernel_choice_path[0] = np.random.choice(3)
-    reg_total_path.append(channel_choice_path)
-    reg_total_path.append(kernel_choice_path)
-
-    cand_h_dict = {'cls': cls_total_path, 'reg': reg_total_path}
-    return cand_h_dict
-
-
-if __name__ == '__main__':
-    net = sub_connect()
-    print(net)
-
