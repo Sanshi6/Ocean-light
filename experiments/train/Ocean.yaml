@@ -1,7 +1,7 @@
 OCEAN:
   GPUS: '0'
   PRINT_FREQ: 10
-  WORKERS: 8
+  WORKERS: 16
   OUTPUT_DIR: 'logs'   # log file
   CHECKPOINT_DIR: 'snapshot'   # checkpoint file
 
@@ -14,7 +14,7 @@ OCEAN:
     TEMPLATE_SIZE: 127
     SEARCH_SIZE: 255
     BATCH: 128            # 128
-    STRIDE: 16          # todo ?
+    STRIDE: 16
     RESUME: False
     PRETRAIN: 'pretrain.model'    # todo pretrain model
     LR_POLICY: 'log'
@@ -31,20 +31,20 @@ OCEAN:
       TYPE: 'log'
       KWARGS:
         start_lr: 0.0025        # res50 0.005  alex 0.01
-        end_lr: 0.000005         # res50 0.0005
+        end_lr: 0.00025         # res50 0.0005
 
 
     LAYERS_LR: 0.05  # res50 0.1  alex: 1  # scale ration for backbone
-    BASE_LR: 0.0025
+    BASE_LR: 0.005
     UNFIX_EPOCH: 10
     WARM_POLICY: 'step'
     UNFIX_POLICY: 'log'
     MOMENTUM: 0.9
     WEIGHT_DECAY: 0.0001
-#    TRAINABLE_LAYER: ['layer1', 'layer2', 'layer3']  # ['layer2', 'layer3', 'layer4']   # todo
-    TRAINABLE_LAYER:
-    WHICH_USE: ['YTB', 'VID', 'COCO', 'DET', 'GOT10K']
-#    WHICH_USE: ['GOT10K']
+    TRAINABLE_LAYER: ['stage0', 'stage1', 'stage2', 'stage3']  # ['layer2', 'layer3', 'layer4']
+#    TRAINABLE_LAYER: []
+#    WHICH_USE: ['YTB', 'VID', 'COCO', 'DET', 'GOT10K', 'LASOT']
+    WHICH_USE: ['COCO', 'GOT10K', 'LASOT']
 
   TEST:    # TEST model is same as TRAIN.MODEL
     ISTRUE: False  # whether to test
@@ -100,4 +100,8 @@ OCEAN:
       ANNOTATION: "./data/coco/train2017.json"
       RANGE: 1
       USE: 60000
-
+    LASOT:
+      PATH: "./data/lasot/crop511"
+      ANNOTATION: "./data/lasot/train.json"
+      RANGE: 100
+      USE: 200000

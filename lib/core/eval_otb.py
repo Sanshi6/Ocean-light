@@ -70,7 +70,7 @@ def compute_success_error(gt_center, result_center):
 
 def get_result_bb(arch, seq):
     result_path = join(arch, seq + '.txt')
-    temp = np.loadtxt(result_path, delimiter=',').astype(np.float32)
+    temp = np.loadtxt(result_path, delimiter=',').astype(np.float)
     return np.array(temp)
 
 
@@ -95,7 +95,7 @@ def eval_auc(dataset='OTB2015', result_path='./test/', tracker_reg='S*', start=0
     # success_error = np.zeros((n_seq, len(trackers), len(thresholds_error)))
     for i in range(n_seq):
         seq = seqs[i]
-        gt_rect = np.array(annos[seq]['gt_rect']).astype(np.float32)
+        gt_rect = np.array(annos[seq]['gt_rect']).astype(np.float)
         gt_center = convert_bb_to_center(gt_rect)
         for j in range(len(trackers)):
             tracker = trackers[j]
@@ -153,7 +153,7 @@ def eval_auc_tune(result_path, dataset='OTB2015'):
 
     for i in range(n_seq):
         seq = seqs[i]
-        gt_rect = np.array(annos[seq]['gt_rect']).astype(np.float32)
+        gt_rect = np.array(annos[seq]['gt_rect']).astype(np.float)
         gt_center = convert_bb_to_center(gt_rect)
         bb = get_result_bb(result_path, seq)
         center = convert_bb_to_center(bb)

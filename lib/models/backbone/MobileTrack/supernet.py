@@ -15,7 +15,7 @@ def forward_hook_fn(
 
 
 class SuperNet(nn.Module):
-    def __init__(self, path=None):
+    def __init__(self):
         super(SuperNet, self).__init__()
         self.in_channels = 3
         self.kernel_size = [3, 5, 7, 0]
@@ -29,23 +29,18 @@ class SuperNet(nn.Module):
         self.stage1 = self._make_stage(self.block_stride[1], self.block_num[1], self.block_channel[1])
         self.stage2 = self._make_stage(self.block_stride[2], self.block_num[2], self.block_channel[2], use_act=False)
         self.stage3 = self._make_stage(self.block_stride[3], self.block_num[3], self.block_channel[3])
-        self.stage4 = self._make_stage(self.block_stride[4], self.block_num[4], self.block_channel[4],
-                                       last_use_act=False)
+        self.stage4 = self._make_stage(self.block_stride[4], self.block_num[4], self.block_channel[4], last_use_act=False)
         self.stage = [self.stage0, self.stage1, self.stage2, self.stage3, self.stage4]
         self.global_pool = SelectAdaptivePool2d(pool_type='avg')
         self.classifier = nn.Linear(1280 * self.global_pool.feat_mult(), 1000)
         self.act = nn.ReLU()
+
         self.globalpool = nn.AvgPool2d(7)
         self.dropout = nn.Dropout(0.1)
         self.classifier = nn.Sequential(
             nn.Linear(1280, 1000, bias=False))
 
         self._get_path_back()  # update self.architecture
-
-        self.path = path
-        if self.path is not None:
-            self.architecture = self.path
-
         self._initialize_weights()
 
     def _initialize_weights(self):
@@ -102,6 +97,41 @@ class SuperNet(nn.Module):
             self.kernel_size = [3, 5, 7, 0]
             self.in_planes = out_channels
         return nn.Sequential(*blocks)
+
+    # def _get_path_back(self):
+    #     """randomly sample one path from the backbone supernet"""
+    #     sta_num = [1, 2, 8, 10, 1]
+    #     path_back = []
+    #     for item in sta_num:
+    #         path = [np.random.choice(3)] + np.random.choice(4, (item - 1)).tolist()
+    #         path_back.append(path)
+    #     self.architecture = path_back
+
+    # def _get_path_back(self):
+    #     """randomly sample one path from the backbone supernet"""
+    #     # path_back = [[item for item in sub_list if item != 3] + [3] * sub_list.count(3) for sub_list in path_back]
+    #     sta_num = [1, 2, 8, 10, 1]
+    # path_back = []
+    # for item in sta_num:
+    #     path = np.random.choice(3, item).tolist()
+    #     path_back.append(path)
+    #
+    # new_path_back = []
+    # for num, sub_path in zip(sta_num, path_back):
+    #     identity_num = np.random.randint(0, num)
+    #     sub_path = sub_path[::-1]
+    #     for i in range(identity_num):
+    #         sub_path[i] = 3
+    #     sub_path = sub_path[::-1]
+    #     new_path_back.append(sub_path)
+
+    # path_back = [np.random.choice(3, item).tolist() for item in sta_num]
+    # identity_nums = np.random.randint(0, sta_num, len(path_back))
+    #
+    # new_path_back = [sub_path[::-1] for sub_path in path_back]
+    # new_path_back = [[3 if i < identity_num else val for i, val in enumerate(sub_path)][::-1] for
+    #                  sub_path, identity_num in zip(new_path_back, identity_nums)]
+    # self.architecture = new_path_back
 
     def _get_path_back(self):
         sta_num = [1, 3, 12, 15, 1]
@@ -162,35 +192,55 @@ class SuperNet(nn.Module):
         # x = self.classifier(x)
         return x
 
+
+#
+# def get_path_back():
+#     """randomly sample one path from the backbone supernet"""
+#     # path_back = [[item for item in sub_list if item != 3] + [3] * sub_list.count(3) for sub_list in path_back]
+#     sta_num = [1, 2, 8, 10, 1]
+#     # path_back = []
+#     # for item in sta_num:
+#     #     path = np.random.choice(3, item).tolist()
+#     #     path_back.append(path)
+#     #
+#     # new_path_back = []
+#     # for num, sub_path in zip(sta_num, path_back):
+#     #     identity_num = np.random.randint(0, num)
+#     #     sub_path = sub_path[::-1]
+#     #     for i in range(identity_num):
+#     #         sub_path[i] = 3
+#     #     sub_path = sub_path[::-1]
+#     #     new_path_back.append(sub_path)
+#
+#     path_back = [np.random.choice(3, item).tolist() for item in sta_num]
+#     identity_nums = np.random.randint(0, sta_num, len(path_back))
+#
+#     new_path_back = [sub_path[::-1] for sub_path in path_back]
+#     new_path_back = [[3 if i < identity_num else val for i, val in enumerate(sub_path)][::-1] for sub_path, identity_num
+#                      in zip(new_path_back, identity_nums)]
+#
+#     return new_path_back
+
 import math
 
 
 def get_path_back():
-    sta_num = [1, 3, 12, 15, 1]
+    cls_total_path = []
+    channel_choice_path = np.random.choice(3, 1).tolist()
+    kernel_choice_path = np.random.choice(4, 8).tolist()
+    kernel_choice_path = [x for x in kernel_choice_path if x != 3] + [3]*kernel_choice_path.count(3)
+    cls_total_path.append(channel_choice_path)
+    cls_total_path.append(kernel_choice_path)
 
-    path_back = []
-    identity_nums = []
-    new_path_back = []
-    # 先全部随机为 0 1 2
-    for item in sta_num:
-        path = np.random.choice(3, item).tolist()
-        path_back.append(path)
-    # 每个阶段找到一个
-    for item in sta_num:
-        identity_num = np.random.randint(int(item * 2 / 3) + 1)
-        identity_nums.append(identity_num)
-        # 1 3 9 11 1  2 8 10
-        # 32
-    for sub_path, identity_num in zip(path_back, identity_nums):
-        reversed_sub_path = sub_path[::-1]
-        modified_sub_path = []
-        for i, val in enumerate(reversed_sub_path):
-            if i < identity_num:
-                modified_sub_path.append(3)
-            else:
-                modified_sub_path.append(val)
-        new_path_back.append(modified_sub_path[::-1])
-    return new_path_back
+    reg_total_path = []
+    channel_choice_path = np.random.choice(3, 1).tolist()
+    kernel_choice_path = np.random.choice(4, 8).tolist()
+    kernel_choice_path = [x for x in kernel_choice_path if x != 3] + [3]*kernel_choice_path.count(3)
+    reg_total_path.append(channel_choice_path)
+    reg_total_path.append(kernel_choice_path)
+
+    cand_h_dict = {'cls': cls_total_path, 'reg': reg_total_path}
+    return cand_h_dict
 
 
 if __name__ == '__main__':
@@ -203,7 +253,7 @@ if __name__ == '__main__':
     # print(net)
     # net.load_state_dict(torch.load(r"E:\SiamProject\LightTrack-VGG\workdirs\model.pth"))
     # print(net)
-    # sum_path = [[0], [1, 1, 1], [2, 1, 2, 1, 1, 1, 2, 0, 0, 3, 3, 3], [1, 0, 0, 1, 2, 1, 0, 0, 1, 1, 0, 0, 0, 3, 3], [2]]
+    # sum_path = [[0], [0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0]]
     # for i in range(1000):
     #     path = get_path_back()
     #     print(path)

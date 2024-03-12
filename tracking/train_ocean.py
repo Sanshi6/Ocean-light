@@ -87,7 +87,7 @@ def get_optimizer(cfg, trainable_params):
 def build_opt_lr(cfg, model, current_epoch=0):
     # fix all backbone first
     for param in model.features.parameters():
-        param.requires_grad = False     # todo
+        param.requires_grad = False
     for m in model.features.modules():
         if isinstance(m, nn.BatchNorm2d):
             m.eval()
@@ -112,6 +112,12 @@ def build_opt_lr(cfg, model, current_epoch=0):
         for m in model.features.modules():
             if isinstance(m, nn.BatchNorm2d):
                 m.eval()
+        # 将stage4的训练打开
+        for param in getattr(model.features, 'stage4').parameters():
+            param.requires_grad = True
+        for m in getattr(model.features, 'stage4').modules():
+            if isinstance(m, nn.BatchNorm2d):
+                m.train()
 
     trainable_params = []
     trainable_params += [{'params': filter(lambda x: x.requires_grad,
@@ -228,7 +234,7 @@ def main():
         # check if it's time to train backbone
         if epoch == config.OCEAN.TRAIN.UNFIX_EPOCH:  # todo 这里会重新构建trainable param，先全部训练试试
             logger.info('training backbone')
-            optimizer, lr_scheduler = build_opt_lr(config, model.module, epoch)
+            optimizer, lr_scheduler = build_opt_lr(config, model, epoch)
             print('==========double check trainable==========')
             check_trainable(model, logger)  # print trainable params info
 

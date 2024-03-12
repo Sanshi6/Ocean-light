@@ -1,7 +1,7 @@
 import numpy as np
 from numba import jit
-# import region
 from . import region
+
 def calculate_failures(trajectory):
     """ Calculate number of failures
     Args:

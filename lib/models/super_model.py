@@ -55,29 +55,30 @@ class Super_model(nn.Module):
         self.grid_to_search_x = self.grid_to_search_x.repeat(self.batch, 1, 1, 1)
         self.grid_to_search_y = self.grid_to_search_y.repeat(self.batch, 1, 1, 1)
 
-    def template(self, z):
-        self.zf = self.feature_extractor(z)
+    def template(self, z, cand_b):
+        self.zf = self.feature_extractor(z, cand_b)
 
-        # if self.neck is not None:
-        #     self.zf = self.neck(self.zf, crop=False)
+        if self.neck is not None:
+            self.zf = self.neck(self.zf, crop=False)
 
-    def track(self, x):
+    def track(self, x, cand_b, cand_h_dict):
         # supernet backbone
-        xf = self.feature_extractor(x)
+        xf = self.feature_extractor(x, cand_b)
         # dim adjust
-        # if self.neck is not None:
-        #     xf = self.neck(xf)
+        if self.neck is not None:
+            xf = self.neck(xf)
 
         # feature fusor correlation
         # feature adjustment and correlation
         feat_dict = self.feature_fusor(self.zf, xf)
 
         # supernet head, 这里也有candidate head dict
-        oup = self.supernet_head(feat_dict)
-        return oup['cls'], oup['reg']
+        oup = self.supernet_head(feat_dict, cand_h_dict)
+        return oup
 
     # 所有的 forward 都有 candidate path or candidate head dict
-    def forward(self, template, search, label=None, reg_target=None, reg_weight=None):
+    def forward(self, template, search, label=None, reg_target=None, reg_weight=None,
+                cand_b=None, cand_h_dict=None):
 
         """run siamese network"""
         zf = self.feature_extractor(template)
@@ -202,25 +203,25 @@ class Super_model_MACs(nn.Module):
         self.score_size = round(self.search_size / self.stride)
         self.num_kernel = round(self.template_size / self.stride) ** 2
 
-    def feature_extractor(self, x):
+    def feature_extractor(self, x, cand_b):
         '''cand_b: candidate path for backbone'''
         if isinstance(self, nn.DataParallel):
-            return self.features.module.forward_backbone(x)
+            return self.features.module.forward_backbone(x, cand_b, stride=self.stride)
         else:
-            return self.features.forward_backbone(x)
+            return self.features.forward_backbone(x, cand_b, stride=self.stride)
 
-    def forward(self, zf, search):
+    def forward(self, zf, search, cand_b, cand_h_dict):
 
         '''run siamese network'''
-        xf = self.feature_extractor(search)
+        xf = self.feature_extractor(search, cand_b)
 
-        # if self.neck is not None:
-        #     xf = self.neck(xf, crop=False)
+        if self.neck is not None:
+            xf = self.neck(xf, crop=False)
 
         # feature adjustment and correlation
         feat_dict = self.feature_fusor(zf, xf)
         # supernet head
-        oup = self.supernet_head(feat_dict)
+        oup = self.supernet_head(feat_dict, cand_h_dict)
 
         return oup
 
@@ -238,8 +239,8 @@ class Super_model_retrain(Super_model):
     def track(self, x):
         # supernet backbone
         xf = self.features(x)
-        # if self.neck is not None:
-        #     raise ValueError('neck should be None')
+        if self.neck is not None:
+            raise ValueError('neck should be None')
         # Point-wise Correlation
         feat_dict = self.feature_fusor(self.zf, xf)
         # supernet head
@@ -250,8 +251,8 @@ class Super_model_retrain(Super_model):
         '''backbone_index: which layer's feature to use'''
         zf = self.features(template, stride=self.stride)
         xf = self.features(search, stride=self.stride)
-        # if self.neck is not None:
-        #     raise ValueError('neck should be None')
+        if self.neck is not None:
+            raise ValueError('neck should be None')
         # Point-wise Correlation
         feat_dict = self.feature_fusor(zf, xf)
         # supernet head
@@ -261,27 +262,6 @@ class Super_model_retrain(Super_model):
         cls_loss = self._weighted_BCE(oup['cls'], label)
         return cls_loss, reg_loss
 
-def get_path_back():
-    cls_total_path = []
-    channel_choice_path = np.random.choice(3)
-    kernel_choice_path = np.random.choice(4, 8).tolist()
-    kernel_choice_path = [x for x in kernel_choice_path if x != 3] + [3] * kernel_choice_path.count(3)
-    if kernel_choice_path[0] == 3: kernel_choice_path[0] = np.random.choice(3)
-    cls_total_path.append(channel_choice_path)
-    cls_total_path.append(kernel_choice_path)
-
-    reg_total_path = []
-    channel_choice_path = np.random.choice(3)
-    kernel_choice_path = np.random.choice(4, 8).tolist()
-    kernel_choice_path = [x for x in kernel_choice_path if x != 3] + [3] * kernel_choice_path.count(3)
-    if kernel_choice_path[0] == 3: kernel_choice_path[0] = np.random.choice(3)
-    reg_total_path.append(channel_choice_path)
-    reg_total_path.append(kernel_choice_path)
-
-    cand_h_dict = {'cls': cls_total_path, 'reg': reg_total_path}
-    return  cand_h_dict
 
 if __name__ == '__main__':
-    for i in range(1000):
-        test = get_path_back()
-        print(test)
+    print(1)
