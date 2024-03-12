@@ -1,0 +1,8 @@
+TEST:
+  OTB100: # LightTrack Mobile (EAO 0.333)
+    penalty_k: 0.007
+    lr: 0.616
+    window_influence: 0.225
+    small_sz: 255
+    big_sz: 255
+    ratio: 1
