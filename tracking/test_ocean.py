@@ -3,7 +3,7 @@
 # Licensed under the MIT License.
 # Written by Zhipeng Zhang (zhangzhipeng2017@ia.ac.cn)
 # ------------------------------------------------------------------------------
-import _init_paths
+# import _init_paths
 import os
 import cv2
 import torch
@@ -29,18 +29,20 @@ from eval_toolkit.pysot.evaluation import EAOBenchmark
 from lib.core.eval_otb import eval_auc_tune
 from tqdm import tqdm
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Test Ocean')
     parser.add_argument('--arch', dest='arch', default='OceanTRT', help='backbone architecture')
     parser.add_argument('--resume', default="snapshot/OceanV.pth", type=str, help='pretrained model')
     parser.add_argument('--dataset', default='VOT2019', help='dataset test')
     parser.add_argument('--epoch_test', default=False, type=bool, help='multi-gpu epoch test flag')
-    parser.add_argument('--align', default='True', type=str, help='alignment module flag') # bool 
+    parser.add_argument('--align', default='True', type=str, help='alignment module flag')  # bool
     parser.add_argument('--online', default=False, type=bool, help='online flag')
     parser.add_argument('--video', default=None, type=str, help='test a video in benchmark')
     args = parser.parse_args()
 
     return args
+
 
 def reloadTRT():
     absPath = os.path.abspath(os.path.dirname(__file__))
@@ -80,7 +82,8 @@ def reloadTRT():
     boxtower255.load_state_dict(torch.load(boxtower255_path))
     boxtower287.load_state_dict(torch.load(boxtower287_path))
 
-    return [t_bk, s_bk_siam255, s_bk_siam287, s_bk_online, t_neck, s_neck255, s_neck287, multiDiCorr255, multiDiCorr287, boxtower255, boxtower287]
+    return [t_bk, s_bk_siam255, s_bk_siam287, s_bk_online, t_neck, s_neck255, s_neck287, multiDiCorr255, multiDiCorr287,
+            boxtower255, boxtower287]
 
 
 def track(siam_tracker, online_tracker, siam_net, video, args):
@@ -117,7 +120,7 @@ def track(siam_tracker, online_tracker, siam_net, video, args):
     for f, image_file in enumerate(image_files):
         im = cv2.imread(image_file)
         rgb_im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
-        if len(im.shape) == 2: im = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)   # align with training
+        if len(im.shape) == 2: im = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)  # align with training
 
         tic = cv2.getTickCount()
         if f == start_frame:  # init
@@ -129,7 +132,8 @@ def track(siam_tracker, online_tracker, siam_net, video, args):
             state = siam_tracker.init(im, target_pos, target_sz, siam_net)  # init tracker
 
             if args.online:
-                online_tracker.init(im, rgb_im, siam_net, target_pos, target_sz, True, dataname=args.dataset, resume=args.resume)
+                online_tracker.init(im, rgb_im, siam_net, target_pos, target_sz, True, dataname=args.dataset,
+                                    resume=args.resume)
 
             # location = cxy_wh_2_rect(state['target_pos'], state['target_sz'])
             regions.append(1 if 'VOT' in args.dataset else gt[f])
@@ -192,7 +196,7 @@ def main():
     if args.online:
         siam_info.align = False
     else:
-        siam_info.align = True if 'VOT' in args.dataset and args.align=='True' else False
+        siam_info.align = True if 'VOT' in args.dataset and args.align == 'True' else False
 
     if siam_info.TRT:
         siam_info.align = False
@@ -231,7 +235,7 @@ def main():
     # prepare video
     dataset = load_dataset(args.dataset)
     video_keys = list(dataset.keys()).copy()
-    
+
     if args.video is not None:
         track(siam_tracker, online_tracker, siam_net, dataset[args.video], args)
     else:
@@ -242,19 +246,11 @@ def main():
 # -----------------------------------------------
 # The next few functions are utilized for tuning
 # -----------------------------------------------
-def track_tune(tracker, net, video, config):
-    arch = config['arch']
-    benchmark_name = config['benchmark']
-    resume = config['resume']
-    hp = config['hp']  # scale_step, scale_penalty, scale_lr, window_influence
+def track_tune(tracker, net, video, config, PATH):
 
-    tracker_path = join('test', (benchmark_name + resume.split('/')[-1].split('.')[0] +
-                                     '_small_size_{:.4f}'.format(hp['small_sz']) +
-                                     '_big_size_{:.4f}'.format(hp['big_sz']) +
-                                     '_ratio_{:.4f}'.format(hp['ratio']) +
-                                     '_penalty_k_{:.4f}'.format(hp['penalty_k']) +
-                                     '_w_influence_{:.4f}'.format(hp['window_influence']) +
-                                     '_scale_lr_{:.4f}'.format(hp['lr'])).replace('.', '_'))  # no .
+    benchmark_name = config['benchmark']
+
+    tracker_path = join('test', PATH)  # no .
     if not os.path.exists(tracker_path):
         os.makedirs(tracker_path)
 
@@ -266,7 +262,7 @@ def track_tune(tracker, net, video, config):
         result_path = join(video_path, video['name'] + '_001.txt')
     elif 'GOT10K' in benchmark_name:
         re_video_path = os.path.join(tracker_path, video['name'])
-        if not exists(re_video_path): os.makedirs(re_video_path)
+        if not exists(re_video_path) : os.makedirs(re_video_path)
         result_path = os.path.join(re_video_path, '{:s}.txt'.format(video['name']))
     else:
         result_path = join(tracker_path, '{:s}.txt'.format(video['name']))
@@ -300,7 +296,7 @@ def track_tune(tracker, net, video, config):
             cx, cy, w, h = get_axis_aligned_bbox(gt[f])
             target_pos = np.array([cx, cy])
             target_sz = np.array([w, h])
-            state = tracker.init(im, target_pos, target_sz, net, hp=hp)  # init tracker
+            state = tracker.init(im, target_pos, target_sz, net)  # init tracker
             location = cxy_wh_2_rect(state['target_pos'], state['target_sz'])
             regions.append([float(1)] if 'VOT' in benchmark_name else gt[f])
         elif f > start_frame:  # tracking
@@ -323,7 +319,7 @@ def track_tune(tracker, net, video, config):
                 p_bbox = x.copy()
                 fin.write(
                     ','.join([str(i + 1) if idx == 0 or idx == 1 else str(i) for idx, i in enumerate(p_bbox)]) + '\n')
-    elif 'VISDRONE' in benchmark_name  or 'GOT10K' in benchmark_name:
+    elif 'VISDRONE' in benchmark_name or 'GOT10K' in benchmark_name:
         with open(result_path, "w") as fin:
             for x in regions:
                 p_bbox = x.copy()
@@ -343,7 +339,7 @@ def track_tune(tracker, net, video, config):
         print('benchmark not supported now')
 
 
-def auc_otb(tracker, net, config):
+def auc_otb(tracker, net, config, path):
     """
     get AUC for OTB benchmark
     """
@@ -352,11 +348,12 @@ def auc_otb(tracker, net, config):
     random.shuffle(video_keys)
 
     for video in video_keys:
-        result_path = track_tune(tracker, net, dataset[video], config)
+        result_path = track_tune(tracker, net, dataset[video], config, path)
 
     auc = eval_auc_tune(result_path, config['benchmark'])
 
     return auc
+
 
 def eao_vot(tracker, net, config):
     dataset = load_dataset(config['benchmark'])
@@ -388,4 +385,3 @@ def eao_vot(tracker, net, config):
 
 if __name__ == '__main__':
     main()
-

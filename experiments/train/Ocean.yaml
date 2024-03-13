@@ -24,14 +24,14 @@ OCEAN:
       TYPE: 'step'
       EPOCH: 10            # res50 5
       KWARGS:
-        start_lr: 0.0005    # res50 0.001 alex: 0.005
-        end_lr: 0.0025      # res50 0.005  alex: 0.01
+        start_lr: 0.0005    # res50 0.001 alex: 0.005 supernet: 0.0005
+        end_lr: 0.0025      # res50 0.005  alex: 0.01 supernet: 0.0025
         step: 1
     LR:
       TYPE: 'log'
       KWARGS:
-        start_lr: 0.0025        # res50 0.005  alex 0.01
-        end_lr: 0.00025         # res50 0.0005
+        start_lr: 0.0025        # res50 0.005  alex 0.01 supernet: 0.0025
+        end_lr: 0.00025         # res50 0.0005  alex 0.001           supernet: 0.00025
 
 
     LAYERS_LR: 0.05  # res50 0.1  alex: 1  # scale ration for backbone
