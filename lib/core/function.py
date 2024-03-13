@@ -28,8 +28,8 @@ def ocean_train(train_loader, model, optimizer, epoch, cur_lr, cfg, writer_dict,
         # measure data loading time
         data_time.update(time.time() - end)
 
-        model.features._get_path_back()
-        model.supernet_head._get_path_back()
+        # model.features._get_path_back()
+        # model.supernet_head._get_path_back()
 
         # input and output/loss
         label_cls = input[2].type(torch.FloatTensor)  # BCE need float
