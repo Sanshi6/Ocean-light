@@ -6,7 +6,7 @@
       <excludeFolder url="file://$MODULE_DIR$/data" />
       <excludeFolder url="file://$MODULE_DIR$/dataset" />
     </content>
-    <orderEntry type="jdk" jdkName="pytorch" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.8 (siamfc)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PyDocumentationSettings">
