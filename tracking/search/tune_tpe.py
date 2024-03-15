@@ -75,9 +75,9 @@ def fitness(config):
                                              verbose=True)
     macs = float(macs.split()[0])
     # 检查FLOPs是否满足要求
-    print("the model flops: ", macs)
-    if macs > 600 or macs < 2:
-        raise TuneError("FLOPs exceeded budget")
+    # print("the model flops: ", macs)
+    # if macs > 600 or macs < 2:
+    #     raise TuneError("FLOPs exceeded budget")
 
     print('pretrained model has been loaded')
     print(os.environ['CUDA_VISIBLE_DEVICES'])

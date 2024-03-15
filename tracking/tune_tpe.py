@@ -13,7 +13,6 @@ from easydict import EasyDict as edict
 import ray
 from ray import tune
 from ray.tune.schedulers import AsyncHyperBandScheduler
-#from ray.tune.suggest import HyperOptSearch
 from ray.tune.suggest.hyperopt import HyperOptSearch
 from hyperopt import hp
 from pprint import pprint

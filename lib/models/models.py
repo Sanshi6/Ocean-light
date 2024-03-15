@@ -15,7 +15,7 @@ class LightTrackM_Supernet(Super_model):
     def __init__(self, search_size=256, template_size=128, stride=16, adj_channel=64, build_module=True, path=None):
         """subclass calls father class's __init__ func"""
         super(LightTrackM_Supernet, self).__init__(search_size=search_size, template_size=template_size, stride=stride)  # ATTENTION
-        backbone_path= None
+        backbone_path = None
         cls_reg_path = None
         if path is not None:
             backbone_path = [[path['bit00']],

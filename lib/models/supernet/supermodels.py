@@ -14,21 +14,30 @@ import random
 class LightTrackM_Supernet(Super_model):
     def __init__(self, search_size=256, template_size=128, stride=16, adj_channel=64, build_module=True, path=None):
         """subclass calls father class's __init__ func"""
-        super(LightTrackM_Supernet, self).__init__(search_size=search_size, template_size=template_size, stride=stride)  # ATTENTION
-        backbone_path= None
+        super(LightTrackM_Supernet, self).__init__(search_size=search_size, template_size=template_size,
+                                                   stride=stride)  # ATTENTION
+        backbone_path = None
         cls_reg_path = None
         if path is not None:
             backbone_path = [[path['bit00']],
                              [path['bit10'], path['bit11'], path['bit12']],
-                             [path['bit20'], path['bit21'], path['bit22'], path['bit23'], path['bit24'], path['bit25'], path['bit26'], path['bit27'], path['bit28'], path['bit29'], path['bit210'], path['bit211']],
-                             [path['bit30'], path['bit31'], path['bit32'], path['bit33'], path['bit34'], path['bit35'], path['bit36'], path['bit37'], path['bit38'], path['bit39'], path['bit310'], path['bit311'], path['bit312'], path['bit313'], path['bit314']],
+                             [path['bit20'], path['bit21'], path['bit22'], path['bit23'], path['bit24'], path['bit25'],
+                              path['bit26'], path['bit27'], path['bit28'], path['bit29'], path['bit210'],
+                              path['bit211']],
+                             [path['bit30'], path['bit31'], path['bit32'], path['bit33'], path['bit34'], path['bit35'],
+                              path['bit36'], path['bit37'], path['bit38'], path['bit39'], path['bit310'],
+                              path['bit311'], path['bit312'], path['bit313'], path['bit314']],
                              [path['bit40']]]
 
-            cls_reg_path = {'cls': [path['cls00'], [path['cls10'], path['cls11'], path['cls12'], path['cls13'], path['cls14'], path['cls15'], path['cls16'], path['cls17']]],
-                            'reg': [path['reg00'], [path['reg10'], path['reg11'], path['reg12'], path['reg13'], path['reg14'], path['reg15'], path['reg16'], path['reg17']]]}
+            cls_reg_path = {'cls': [path['cls00'],
+                                    [path['cls10'], path['cls11'], path['cls12'], path['cls13'], path['cls14'],
+                                     path['cls15'], path['cls16'], path['cls17']]],
+                            'reg': [path['reg00'],
+                                    [path['reg10'], path['reg11'], path['reg12'], path['reg13'], path['reg14'],
+                                     path['reg15'], path['reg16'], path['reg17']]]}
 
             for i in range(path["bit1"]):
-                backbone_path[1][-(i+1)] = 3
+                backbone_path[1][-(i + 1)] = 3
 
             for i in range(path["bit2"]):
                 backbone_path[2][-(i + 1)] = 3
@@ -37,7 +46,7 @@ class LightTrackM_Supernet(Super_model):
                 backbone_path[3][-(i + 1)] = 3
 
             for i in range(path["cls"]):
-                cls_reg_path['cls'][1][-(i+1)] = 3
+                cls_reg_path['cls'][1][-(i + 1)] = 3
 
             for i in range(path["reg"]):
                 cls_reg_path['reg'][1][-(i + 1)] = 3
@@ -50,12 +59,14 @@ class LightTrackM_Supernet(Super_model):
         self.tower_num = 8
         if build_module:
             # self.features, self.sta_num = build_supernet_DP(flops_maximum=self.max_flops_back)          # todo
-            self.features = SuperNet(path=backbone_path)      #
+            self.features = SuperNet(path=backbone_path)  #
             self.feature_fusor = Point_Neck_Mobile_simple(inchannels=1280)  # stride=8, stride=16
             self.supernet_head = head_supernet(channel_list=self.channel_list, kernel_list=self.kernel_list,
-                                               linear_reg=False, inchannels=adj_channel, towernum=self.tower_num, path=cls_reg_path)  #
+                                               linear_reg=False, inchannels=adj_channel, towernum=self.tower_num,
+                                               path=cls_reg_path)  #
         else:
             _, self.sta_num = build_supernet_DP(flops_maximum=self.max_flops_back)
+
 
 class LightTrackM_FLOPs(Super_model_MACs):
     def __init__(self, search_size=256, template_size=128, stride=16, adj_channel=128):
@@ -121,12 +132,12 @@ class SuperNetToolbox(object):
         return path_back
 
     def get_path_head_single(self):
-        num_choice_channel_head = self.model.num_choice_channel_head                    # 3
-        num_choice_kernel_head = self.model.num_choice_kernel_head                      # 4
-        tower_num = self.model.tower_num                                                # 8
-        oup = [random.randint(0, num_choice_channel_head - 1)]                       # num of choices for head's channel
+        num_choice_channel_head = self.model.num_choice_channel_head  # 3
+        num_choice_kernel_head = self.model.num_choice_kernel_head  # 4
+        tower_num = self.model.tower_num  # 8
+        oup = [random.randint(0, num_choice_channel_head - 1)]  # num of choices for head's channel
         arch = [random.randint(0, num_choice_kernel_head - 2)]
-        arch += list(np.random.choice(num_choice_kernel_head, tower_num - 1))           # 3x3 conv, 5x5 conv, skip
+        arch += list(np.random.choice(num_choice_kernel_head, tower_num - 1))  # 3x3 conv, 5x5 conv, skip
         oup.append(arch)
         return oup
 
@@ -171,5 +182,11 @@ if __name__ == '__main__':
     # net_box = SuperNetToolbox(net)
     # sub_net_box = net_box.get_one_path()
     # print(sub_net_box)
-    path ={'bit00': 2, 'bit10': 0, 'bit11': 1, 'bit12': 0, 'bit20': 0, 'bit21': 2, 'bit22': 0, 'bit23': 2, 'bit24': 0, 'bit25': 0, 'bit26': 2, 'bit27': 0, 'bit28': 0, 'bit29': 0, 'bit210': 2, 'bit211': 2, 'bit30': 0, 'bit31': 1, 'bit32': 2, 'bit33': 2, 'bit34': 0, 'bit35': 2, 'bit36': 2, 'bit37': 1, 'bit38': 1, 'bit39': 0, 'bit310': 1, 'bit311': 0, 'bit312': 2, 'bit313': 1, 'bit314': 2, 'bit40': 0, 'bit1': 0, 'bit2': 3, 'bit3': 8, 'cls00': 1, 'cls10': 0, 'cls11': 1, 'cls12': 0, 'cls13': 1, 'cls14': 2, 'cls15': 2, 'cls16': 2, 'cls17': 0, 'cls': 3, 'reg00': 1, 'reg10': 1, 'reg11': 2, 'reg12': 0, 'reg13': 0, 'reg14': 1, 'reg15': 2, 'reg16': 1, 'reg17': 0, 'reg': 4}
+    path = {'bit00': 2, 'bit10': 0, 'bit11': 1, 'bit12': 0, 'bit20': 0, 'bit21': 2, 'bit22': 0, 'bit23': 2, 'bit24': 0,
+            'bit25': 0, 'bit26': 2, 'bit27': 0, 'bit28': 0, 'bit29': 0, 'bit210': 2, 'bit211': 2, 'bit30': 0,
+            'bit31': 1, 'bit32': 2, 'bit33': 2, 'bit34': 0, 'bit35': 2, 'bit36': 2, 'bit37': 1, 'bit38': 1, 'bit39': 0,
+            'bit310': 1, 'bit311': 0, 'bit312': 2, 'bit313': 1, 'bit314': 2, 'bit40': 0, 'bit1': 0, 'bit2': 3,
+            'bit3': 8, 'cls00': 1, 'cls10': 0, 'cls11': 1, 'cls12': 0, 'cls13': 1, 'cls14': 2, 'cls15': 2, 'cls16': 2,
+            'cls17': 0, 'cls': 3, 'reg00': 1, 'reg10': 1, 'reg11': 2, 'reg12': 0, 'reg13': 0, 'reg14': 1, 'reg15': 2,
+            'reg16': 1, 'reg17': 0, 'reg': 4}
     LightTrackM_Supernet(path=path)

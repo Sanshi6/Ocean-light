@@ -9,7 +9,7 @@ from lib.utils.utils import load_yaml, im_to_torch, get_subwindow_tracking, make
 
 
 class Lighttrack(object):
-    def __init__(self, info=None, even=0):
+    def __init__(self, info=None, even=0, hp=None):
         super(Lighttrack, self).__init__()
         # self.info = info  # model and benchmark info
         # self.stride = info.stride
@@ -17,8 +17,11 @@ class Lighttrack(object):
         self.dataset = 'OTB100'
         self.stride = 16
         self.even = False
+        self.hp = None
+        if hp is not None:
+            self.hp = hp
 
-    def init(self, im, target_pos, target_sz, model):
+    def init(self, im, target_pos, target_sz, model, hp=None):
         state = dict()
         p = Config(stride=self.stride, even=self.even)
 
@@ -34,6 +37,11 @@ class Lighttrack(object):
         cfg_benchmark = cfg[self.dataset]
         p.update(cfg_benchmark)
         p.renew()
+
+        if self.hp is not None:
+            print(self.hp)
+            p.update(self.hp)
+            p.renew()
 
         if ((target_sz[0] * target_sz[1]) / float(state['im_h'] * state['im_w'])) < 0.004:
             p.instance_size = cfg_benchmark['big_sz']

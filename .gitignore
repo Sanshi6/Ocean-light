@@ -3,6 +3,7 @@ dataset/
 ray_result/
 result/
 logs/
-
+test/
 *.pth
 *.tar
+*.txt
