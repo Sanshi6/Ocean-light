@@ -32,14 +32,9 @@ from ray.tune.search.ax import AxSearch
 from hyperopt import hp
 from pprint import pprint
 
-
-
 parser = argparse.ArgumentParser(description='parameters for Ocean tracker')
 parser.add_argument('--dataset', default='OTB100', type=str, help='dataset')
 args = parser.parse_args()
-
-
-
 
 if __name__ == '__main__':
     tracker = Lighttrack()
@@ -59,9 +54,3 @@ if __name__ == '__main__':
     if args.dataset.startswith('OTB'):
         auc = auc_otb(tracker, model, config, '004')
         print("auc = {}".format(auc))
-
-
-
-
-
-
