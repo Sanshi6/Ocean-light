@@ -19,6 +19,7 @@ class Lighttrack(object):
         self.even = False
         self.hp = None
         if hp is not None:
+            print(hp)
             self.hp = hp
 
     def init(self, im, target_pos, target_sz, model, hp=None):
@@ -39,7 +40,7 @@ class Lighttrack(object):
         p.renew()
 
         if self.hp is not None:
-            print(self.hp)
+            # print(self.hp)
             p.update(self.hp)
             p.renew()
 

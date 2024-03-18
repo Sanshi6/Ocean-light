@@ -39,7 +39,7 @@ args = parser.parse_args()
 if __name__ == '__main__':
     tracker = Lighttrack()
     model = LightTrackM_Subnet().cuda()
-    model = load_pretrain(model, 'snapshot/checkpoint_e50.pth')
+    model = load_pretrain(model, 'snapshot/checkpoint_e38.pth')
     model.eval()
     model.features = reparameterize_model(model.features)
     model = model.cuda()

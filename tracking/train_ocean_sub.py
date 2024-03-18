@@ -195,7 +195,7 @@ def main():
 
     # model = models.__dict__[config.OCEAN.TRAIN.MODEL](align=False).cuda()  # build model
     model = LightTrackM_Subnet().cuda()
-    model = load_pretrain(model, 'pretrain/mobileone_epoch50.pth')
+    model = load_pretrain(model, 'snapshot/checkpoint_e31.pth')
 
     # get optimizer
     if not config.OCEAN.TRAIN.START_EPOCH == config.OCEAN.TRAIN.UNFIX_EPOCH:
